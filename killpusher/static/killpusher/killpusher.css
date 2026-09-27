@@ -1,0 +1,7 @@
+.kp-table { min-width: 900px; }
+.kp-table th, .kp-table td { padding: 1rem; }
+.kp-table td:last-child { min-width: 320px; max-width: 440px; }
+.kp-table time { white-space: nowrap; }
+.kp-url { font-family: monospace; }
+#killpusher summary { cursor: pointer; }
+

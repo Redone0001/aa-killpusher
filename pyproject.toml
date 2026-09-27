@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aa-killpusher"
+version = "0.1.0"
+description = "Manually publish character killmails to zKillboard from Alliance Auth"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "allianceauth>=5.4,<5.5",
+  "django-esi>=9.10,<10",
+  "django-eveonline-sde>=0.2,<1",
+  "requests>=2.32,<3",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8", "pytest-django>=4.8", "requests-mock>=1.12", "fakeredis>=2", "ruff", "build"]
+
+[tool.setuptools.packages.find]
+include = ["killpusher*"]
+
+[tool.setuptools.package-data]
+killpusher = ["templates/killpusher/*.html", "static/killpusher/*.js", "static/killpusher/*.css"]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "tests.settings"
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]

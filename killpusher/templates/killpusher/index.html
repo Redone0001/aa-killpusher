@@ -1,0 +1,88 @@
+{% extends 'allianceauth/base-bs5.html' %}
+{% load static %}
+{% block page_title %}Killmail Pusher{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'killpusher/killpusher.css' %}">
+{% endblock %}
+{% block content %}
+<div id="killpusher">
+  <div class="d-flex flex-wrap gap-3 justify-content-between align-items-start mb-4">
+    <div>
+      <h1 class="h2">Killmail Pusher</h1>
+      <p class="text-body-secondary mb-1">Your last 7 days of killmails. You decide what gets published.</p>
+      <p class="small text-body-secondary mb-0">Imports run every 5 minutes. CCP supplies losses and final-blow kills; fleet assists may be missing.</p>
+    </div>
+    <a class="btn btn-primary" href="{% url 'killpusher:connect' %}">Connect a character</a>
+  </div>
+  <noscript><div class="alert alert-warning">JavaScript is required to push and copy killmails. You can select and copy the ESI URL manually.</div></noscript>
+  <details class="card mb-4">
+    <summary class="card-header">Connected characters and import status</summary>
+    <div class="card-body">
+      {% for character in characters %}
+      <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between border-bottom py-2">
+        <div>
+          <strong>{{ character.ownership.character.character_name }}</strong>
+          <span class="small text-body-secondary">Last import: {{ character.last_sync|date:'Y-m-d H:i T'|default:'Waiting for first import' }}</span>
+          {% if character.error %}<div class="text-warning">{{ character.error }}</div>{% endif %}
+          {% if character.next_page > 1 %}<div class="small">Older killmails are still importing.</div>{% endif %}
+        </div>
+        <form method="post" action="{% url 'killpusher:disconnect' character.pk %}">
+          {% csrf_token %}<button class="btn btn-sm btn-outline-secondary">Disconnect</button>
+        </form>
+      </div>
+      {% empty %}<p class="mb-0">Connect an AA character to import its killmails using EVE SSO.</p>{% endfor %}
+    </div>
+  </details>
+  {% if not alliance_id %}<p class="small text-body-secondary">Your AA main character has no alliance recorded. No same-alliance match can be made.</p>{% endif %}
+  <form method="get" class="d-flex gap-2 align-items-center mb-3">
+    <label for="kp-role">Show</label>
+    <select id="kp-role" name="role" class="form-select w-auto">
+      <option value="">Kills and losses</option>
+      <option value="kill" {% if role == 'kill' %}selected{% endif %}>Kills</option>
+      <option value="loss" {% if role == 'loss' %}selected{% endif %}>Losses</option>
+    </select>
+    <button class="btn btn-outline-primary">Filter</button>
+  </form>
+  <div id="kp-feedback" class="alert d-none" role="status" aria-live="polite"></div>
+  <form id="kp-csrf" hidden>{% csrf_token %}</form>
+  <div class="table-responsive card">
+    <table class="table align-middle mb-0 kp-table">
+      <thead><tr><th>Date / character</th><th>Result</th><th>Victim / ship</th><th>System</th><th>Status</th><th>Actions</th></tr></thead>
+      <tbody>
+      {% for row in rows %}
+      <tr data-killmail="{{ row.mail.pk }}">
+        <td><time>{{ row.mail.occurred_at|date:'Y-m-d H:i T' }}</time><div class="small text-body-secondary">{{ row.link.character.ownership.character.character_name }}</div></td>
+        <td><span class="badge {% if row.link.role == 'loss' %}text-bg-danger{% else %}text-bg-success{% endif %}">{{ row.link.get_role_display }}</span></td>
+        <td><strong>{{ row.ship }}</strong><div>{{ row.victim }}</div><div class="small text-body-secondary">{{ row.corporation }}</div>{% if row.friendly %}<span class="badge text-bg-warning">Same alliance</span>{% endif %}</td>
+        <td>{{ row.system }}</td>
+        <td><span class="kp-state">{% if row.submission %}{{ row.submission.get_state_display }}{% else %}Not pushed{% endif %}</span><div class="kp-message small text-body-secondary">{{ row.submission.message }}</div></td>
+        <td>
+          <div class="d-flex flex-wrap gap-2 mb-2">
+            <button type="button" class="btn btn-sm btn-primary kp-push" data-url="{% url 'killpusher:push' row.mail.pk %}" {% if not row.can_push %}disabled{% endif %}>Push to zKillboard</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary kp-check {% if not row.can_check %}d-none{% endif %}" data-url="{% url 'killpusher:check' row.mail.pk %}">Check status</button>
+            <a class="btn btn-sm btn-outline-secondary" href="{{ row.mail.zkill_url }}" target="_blank" rel="noopener noreferrer">View on zKillboard</a>
+          </div>
+          <div class="input-group input-group-sm">
+            <input class="form-control kp-url" aria-label="ESI URL for killmail {{ row.mail.pk }}" readonly value="{{ row.mail.esi_url }}">
+            <button type="button" class="btn btn-outline-secondary kp-copy">Copy</button>
+          </div>
+        </td>
+      </tr>
+      {% empty %}<tr><td colspan="6" class="py-5 text-center text-body-secondary">No killmails in the last 7 days. Connect a character and allow the next import to finish.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="d-flex justify-content-between align-items-center my-3">
+    <span class="small text-body-secondary">Page {{ page.number }} of {{ page.paginator.num_pages }} · {{ page.paginator.count }} character entries</span>
+    <nav aria-label="Killmail pages">
+      {% if page.has_previous %}<a class="btn btn-sm btn-outline-secondary" href="?role={{ role }}&amp;page={{ page.previous_page_number }}">Previous</a>{% endif %}
+      {% if page.has_next %}<a class="btn btn-sm btn-outline-secondary" href="?role={{ role }}&amp;page={{ page.next_page_number }}">Next</a>{% endif %}
+    </nav>
+  </div>
+  <p class="small text-body-secondary">For manual posting, copy the ESI URL and paste it on <a href="https://zkillboard.com/post/" target="_blank" rel="noopener noreferrer">zKillboard’s posting page</a>. Copying does not mark a killmail as pushed.</p>
+</div>
+{% endblock %}
+{% block extra_javascript %}
+<script src="{% static 'killpusher/killpusher.js' %}" defer></script>
+{% endblock %}
+
