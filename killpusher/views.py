@@ -48,6 +48,16 @@ def index(request):
         links = links.filter(role=role)
     else:
         role = ""
+    pushed = request.GET.get("pushed", "")
+    submitted_ids = Submission.objects.filter(state=Submission.State.SUBMITTED).values(
+        "killmail_id"
+    )
+    if pushed == "yes":
+        links = links.filter(killmail_id__in=submitted_ids)
+    elif pushed == "no":
+        links = links.exclude(killmail_id__in=submitted_ids)
+    else:
+        pushed = ""
     page = Paginator(links, 50).get_page(request.GET.get("page"))
     mails = [link.killmail for link in page]
     ships = names(ItemType, {m.victim_ship_type_id for m in mails})
@@ -103,6 +113,7 @@ def index(request):
             "rows": rows,
             "page": page,
             "role": role,
+            "pushed": pushed,
             "characters": tracked_for(request.user),
             "alliance_id": alliance_id,
         },

@@ -33,6 +33,9 @@
     if (!response.ok) throw new Error(data.message || "Request failed. Refresh to check its status.");
     return data;
   };
+  root.addEventListener("change", (event) => {
+    if (event.target.matches(".kp-status-filter")) event.target.form.requestSubmit();
+  });
   root.addEventListener("click", async (event) => {
     const button = event.target.closest("button");
     if (button?.id === "kp-refresh" || button?.id === "kp-import") {

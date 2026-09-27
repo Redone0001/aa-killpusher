@@ -9,6 +9,8 @@ with modern AA/Django hooks and templates.
 
 - Connect any character already owned by their AA account using EVE SSO;
   an initial import is queued as soon as authorization is saved.
+- Toggle **All / Pushed / Not pushed** beside the kill/loss filter. Not pushed
+  includes pending or uncertain submissions; their existing push restrictions still apply.
 - **Refresh all characters** requests imports for every character connected to
   this module on the current account, while respecting CCP cooldowns.
 - List the last **7 days** of imported kills and losses, with a kill/loss filter
@@ -44,7 +46,7 @@ environment/container as AA. Clone using a GitHub account with repository access
 gh auth login --hostname github.com
 gh repo clone Redone0001/aa-killpusher
 cd aa-killpusher
-git checkout v0.1.4
+git checkout v0.1.5
 python -m pip install .
 ```
 
@@ -53,13 +55,13 @@ tokens in install URLs, shell history, or settings files. If the repository is
 public, you can instead install the tagged version directly:
 
 ```sh
-python -m pip install 'git+https://github.com/Redone0001/aa-killpusher.git@v0.1.4'
+python -m pip install 'git+https://github.com/Redone0001/aa-killpusher.git@v0.1.5'
 ```
 
 Alternatively, install a built wheel:
 
 ```sh
-pip install /path/to/aa_killpusher-0.1.4-py3-none-any.whl
+pip install /path/to/aa_killpusher-0.1.5-py3-none-any.whl
 ```
 
 The package is not published on PyPI. The wheel is generated under `dist/` when
@@ -93,7 +95,7 @@ remain supported, but can be removed to use the shared AA configuration.
 To upgrade an existing installation:
 
 ```sh
-python -m pip install --upgrade 'git+https://github.com/Redone0001/aa-killpusher.git@v0.1.4'
+python -m pip install --upgrade 'git+https://github.com/Redone0001/aa-killpusher.git@v0.1.5'
 python manage.py migrate
 python manage.py check
 python manage.py collectstatic --noinput
@@ -112,7 +114,7 @@ ownership hash, and include the killmail scope. Newly connected characters get a
 import task after the database transaction commits. Existing connections and CCP
 cooldowns are preserved. This action is limited to once per minute. Missing scopes
 or revoked tokens require **Connect a character**. Disconnecting remains effective
-until you explicitly connect or import again. No new migration is needed for 0.1.4.
+until you explicitly connect or import again. No new migration is needed for 0.1.5.
 
 There is no separate OAuth client or callback to configure. Each user consents
 to the scope through the module's **Connect a character** button; it is not

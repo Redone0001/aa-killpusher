@@ -40,17 +40,25 @@
     </div>
   </details>
   {% if not alliance_id %}<p class="small text-body-secondary">Your AA main character has no alliance recorded. No same-alliance match can be made.</p>{% endif %}
-  <form method="get" class="d-flex gap-2 align-items-center mb-3">
+  <form method="get" class="d-flex flex-wrap gap-2 align-items-center mb-3">
     <label for="kp-role">Show</label>
     <select id="kp-role" name="role" class="form-select w-auto">
       <option value="">Kills and losses</option>
       <option value="kill" {% if role == 'kill' %}selected{% endif %}>Kills</option>
       <option value="loss" {% if role == 'loss' %}selected{% endif %}>Losses</option>
     </select>
+    <div class="btn-group" role="group" aria-label="Pushed status">
+      <input type="radio" class="btn-check kp-status-filter" name="pushed" id="kp-status-all" value="" {% if not pushed %}checked{% endif %}>
+      <label class="btn btn-outline-secondary" for="kp-status-all">All</label>
+      <input type="radio" class="btn-check kp-status-filter" name="pushed" id="kp-status-yes" value="yes" {% if pushed == 'yes' %}checked{% endif %}>
+      <label class="btn btn-outline-secondary" for="kp-status-yes">Pushed</label>
+      <input type="radio" class="btn-check kp-status-filter" name="pushed" id="kp-status-no" value="no" {% if pushed == 'no' %}checked{% endif %}>
+      <label class="btn btn-outline-secondary" for="kp-status-no">Not pushed</label>
+    </div>
     <button class="btn btn-outline-primary">Filter</button>
   </form>
   <div id="kp-feedback" class="alert d-none" role="status" aria-live="polite"></div>
-  <a id="kp-reload" class="btn btn-sm btn-outline-secondary mb-3 d-none" href="?role={{ role }}">Reload list and import status</a>
+  <a id="kp-reload" class="btn btn-sm btn-outline-secondary mb-3 d-none" href="?role={{ role }}&amp;pushed={{ pushed }}">Reload list and import status</a>
   <form id="kp-csrf" hidden>{% csrf_token %}</form>
   <div class="table-responsive card">
     <table class="table align-middle mb-0 kp-table">
@@ -75,15 +83,15 @@
           </div>
         </td>
       </tr>
-      {% empty %}<tr><td colspan="6" class="py-5 text-center text-body-secondary">No killmails in the last 7 days. Connect a character and allow the next import to finish.</td></tr>{% endfor %}
+      {% empty %}<tr><td colspan="6" class="py-5 text-center text-body-secondary">No killmails match these filters in the last 7 days. Try another filter or refresh your characters.</td></tr>{% endfor %}
       </tbody>
     </table>
   </div>
   <div class="d-flex justify-content-between align-items-center my-3">
     <span class="small text-body-secondary">Page {{ page.number }} of {{ page.paginator.num_pages }} · {{ page.paginator.count }} character entries</span>
     <nav aria-label="Killmail pages">
-      {% if page.has_previous %}<a class="btn btn-sm btn-outline-secondary" href="?role={{ role }}&amp;page={{ page.previous_page_number }}">Previous</a>{% endif %}
-      {% if page.has_next %}<a class="btn btn-sm btn-outline-secondary" href="?role={{ role }}&amp;page={{ page.next_page_number }}">Next</a>{% endif %}
+      {% if page.has_previous %}<a class="btn btn-sm btn-outline-secondary" href="?role={{ role }}&amp;pushed={{ pushed }}&amp;page={{ page.previous_page_number }}">Previous</a>{% endif %}
+      {% if page.has_next %}<a class="btn btn-sm btn-outline-secondary" href="?role={{ role }}&amp;pushed={{ pushed }}&amp;page={{ page.next_page_number }}">Next</a>{% endif %}
     </nav>
   </div>
   <p class="small text-body-secondary">For manual posting, copy the ESI URL and paste it on <a href="https://zkillboard.com/post/" target="_blank" rel="noopener noreferrer">zKillboard’s posting page</a>. Copying does not mark a killmail as pushed.</p>
