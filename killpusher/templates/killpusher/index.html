@@ -12,12 +12,16 @@
       <p class="text-body-secondary mb-1">Your last 7 days of killmails. You decide what gets published.</p>
       <p class="small text-body-secondary mb-0">Imports run every 5 minutes. CCP supplies losses and final-blow kills; fleet assists may be missing.</p>
     </div>
-    <a class="btn btn-primary" href="{% url 'killpusher:connect' %}">Connect a character</a>
+    <div class="d-flex flex-wrap gap-2">
+      <button type="button" id="kp-refresh" class="btn btn-outline-primary" data-url="{% url 'killpusher:refresh' %}">Refresh all characters</button>
+      <a class="btn btn-primary" href="{% url 'killpusher:connect' %}">Connect a character</a>
+    </div>
   </div>
   <noscript><div class="alert alert-warning">JavaScript is required to push and copy killmails. You can select and copy the ESI URL manually.</div></noscript>
   <details class="card mb-4">
     <summary class="card-header">Connected characters and import status</summary>
     <div class="card-body">
+      <p class="small text-body-secondary">Refresh imports killmails for all characters connected here. Each character must first grant killmail access through Connect a character.</p>
       {% for character in characters %}
       <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between border-bottom py-2">
         <div>
@@ -44,6 +48,7 @@
     <button class="btn btn-outline-primary">Filter</button>
   </form>
   <div id="kp-feedback" class="alert d-none" role="status" aria-live="polite"></div>
+  <a id="kp-reload" class="btn btn-sm btn-outline-secondary mb-3 d-none" href="?role={{ role }}">Reload list and import status</a>
   <form id="kp-csrf" hidden>{% csrf_token %}</form>
   <div class="table-responsive card">
     <table class="table align-middle mb-0 kp-table">
@@ -85,4 +90,3 @@
 {% block extra_javascript %}
 <script src="{% static 'killpusher/killpusher.js' %}" defer></script>
 {% endblock %}
-

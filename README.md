@@ -7,7 +7,10 @@ with modern AA/Django hooks and templates.
 
 ## What users get
 
-- Connect any character already owned by their AA account using EVE SSO.
+- Connect any character already owned by their AA account using EVE SSO;
+  an initial import is queued as soon as authorization is saved.
+- **Refresh all characters** requests imports for every character connected to
+  this module on the current account, while respecting CCP cooldowns.
 - List the last **7 days** of imported kills and losses, with a kill/loss filter
   and 50 character entries per page.
 - Push a killmail without navigating away from the page.
@@ -37,7 +40,7 @@ environment/container as AA. Clone using a GitHub account with repository access
 gh auth login --hostname github.com
 gh repo clone Redone0001/aa-killpusher
 cd aa-killpusher
-git checkout v0.1.1
+git checkout v0.1.2
 python -m pip install .
 ```
 
@@ -46,13 +49,13 @@ tokens in install URLs, shell history, or settings files. If the repository is
 public, you can instead install the tagged version directly:
 
 ```sh
-python -m pip install 'git+https://github.com/Redone0001/aa-killpusher.git@v0.1.1'
+python -m pip install 'git+https://github.com/Redone0001/aa-killpusher.git@v0.1.2'
 ```
 
 Alternatively, install a built wheel:
 
 ```sh
-pip install /path/to/aa_killpusher-0.1.1-py3-none-any.whl
+pip install /path/to/aa_killpusher-0.1.2-py3-none-any.whl
 ```
 
 The package is not published on PyPI. The wheel is generated under `dist/` when
@@ -83,14 +86,15 @@ module-specific contact setting is required. AA retains responsibility for
 validating its central settings. Existing `KILLPUSHER_USER_AGENT` overrides
 remain supported, but can be removed to use the shared AA configuration.
 
-To upgrade an existing installation to this behavior:
+To upgrade an existing installation:
 
 ```sh
-python -m pip install --upgrade 'git+https://github.com/Redone0001/aa-killpusher.git@v0.1.1'
+python -m pip install --upgrade 'git+https://github.com/Redone0001/aa-killpusher.git@v0.1.2'
 python manage.py check
+python manage.py collectstatic --noinput
 ```
 
-Restart AA's web process and Celery workers after upgrading. Version 0.1.1
+Restart AA's web process and Celery workers after upgrading. Version 0.1.2
 does not require new database migrations.
 
 Add **`esi-killmails.read_killmails.v1`** to the allowed scopes of the EVE
@@ -115,8 +119,22 @@ Grant **Killmail Pusher → Can use Killmail Pusher**
 (`killpusher.basic_access`) to the intended users, groups, or states. The menu
 entry and `/killpusher/` page then become available.
 
-Connect a character, allow a scheduled import to finish, and review its import
-status in **Connected characters and import status**. For initial diagnosis,
+Connect a character, allow its queued import to finish, and review its import
+status in **Connected characters and import status**. Reconnecting also requests
+an import. These tasks are queued after the authorization transaction commits,
+so workers can see the new token and tracking record.
+
+**Refresh all characters** requests imports for all of your characters connected
+to this module with valid ownership and killmail scopes. Characters merely linked
+to AA still need to authorize the module first. The request runs in the background;
+use **Reload list and import status** after the imports finish. Repeated refresh
+requests are limited to once per minute per account. Existing five-minute polling
+cooldowns, active imports, and longer CCP rate-limit backoffs are respected:
+manual refresh does not force a fresh response out of CCP's cache. If the task
+broker is unavailable, authorization is retained and the next scheduled poll can
+retry once it recovers.
+
+For initial diagnosis,
 the regular task can also be dispatched from the AA shell:
 
 ```python
@@ -151,7 +169,11 @@ small, ongoing component proportional to the number of submissions.
 ## API behavior and limits
 
 CCP's character endpoint returns ID/hash pairs for up to 90 days. The module
-keeps only seven days. The character generally receives **losses and
+keeps only seven days **from the kill time**, not seven days from import. This
+also applies to initial imports and manual refreshes. Older detail records may
+still be retrievable directly if their ID and hash are already known, but the
+recent endpoint cannot discover a character's complete history beyond 90 days.
+The character generally receives **losses and
 final-blow kills**, not every assisted fleet kill. This is not a complete
 personal combat history. See [CCP's killmail explanation](https://support.eveonline.com/hc/en-us/articles/11730655033884-Killmails)
 and the [current ESI schema](https://esi.evetech.net/meta/openapi.json).

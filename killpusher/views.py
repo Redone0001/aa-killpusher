@@ -16,6 +16,7 @@ from . import posting
 from .access import current_alliance, tracked_for, valid_token
 from .conf import PERMISSION, SCOPE, cutoff
 from .models import CharacterKillmail, Killmail, Submission, TrackedCharacter
+from .queueing import queue_import
 
 
 def visible_links(user):
@@ -144,10 +145,42 @@ def connect(request, token):
         character.sync_lock = None
         character.lock_until = None
         character.save()
+        transaction.on_commit(lambda pk=character.pk: queue_import(pk))
     messages.success(
-        request, "Character connected. Killmails will import on the next five-minute poll."
+        request, "Character connected. Import requested; any existing CCP cooldown still applies."
     )
     return redirect("killpusher:index")
+
+
+@login_required
+@permission_required(PERMISSION, raise_exception=True)
+@require_POST
+@never_cache
+def refresh_all(request):
+    if not cache.add(f"killpusher:refresh:{request.user.pk}", True, timeout=60):
+        return JsonResponse(
+            {"message": "Please wait a minute before requesting another refresh."}, status=429
+        )
+    characters = [character for character in tracked_for(request.user) if valid_token(character)]
+    if not characters:
+        cache.delete(f"killpusher:refresh:{request.user.pk}")
+        return JsonResponse(
+            {"message": "Connect a character with killmail access before refreshing."}, status=400
+        )
+    queued = sum(queue_import(character.pk) for character in characters)
+    failed = len(characters) - queued
+    if failed:
+        # Allow retry after a broker failure; any accepted jobs remain protected by the DB lease.
+        cache.delete(f"killpusher:refresh:{request.user.pk}")
+    message = (
+        f"Import requested for {queued} character(s). CCP cooldowns still apply. "
+        "Reload the list after imports finish."
+    )
+    if failed:
+        message += f" {failed} could not be queued; the scheduled poll will retry."
+    return JsonResponse(
+        {"queued": queued, "failed": failed, "message": message}, status=202 if queued else 503
+    )
 
 
 @login_required

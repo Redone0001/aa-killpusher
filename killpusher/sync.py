@@ -75,10 +75,16 @@ def sync_character(character_pk):
         )
         .filter(Q(next_poll__isnull=True) | Q(next_poll__lte=now))
     )
-    if not available.update(sync_lock=lease, lock_until=now + timedelta(minutes=5)):
+    if not available.update(
+        sync_lock=lease,
+        lock_until=now + timedelta(minutes=5),
+        next_poll=now + timedelta(seconds=300),
+    ):
         return
     owned = TrackedCharacter.objects.filter(pk=character_pk, sync_lock=lease)
-    character = owned.select_related("ownership__character", "ownership__user", "token").get()
+    character = owned.select_related("ownership__character", "ownership__user", "token").first()
+    if character is None:
+        return  # Disconnected or reauthorized after the lease was claimed.
     started = time.monotonic()
     updates = {"next_poll": now + timedelta(seconds=300), "error": ""}
     try:

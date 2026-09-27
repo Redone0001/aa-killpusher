@@ -35,6 +35,19 @@
   };
   root.addEventListener("click", async (event) => {
     const button = event.target.closest("button");
+    if (button?.id === "kp-refresh") {
+      button.disabled = true;
+      try {
+        const result = await send(button.dataset.url);
+        tell(result.message, result.failed > 0);
+        document.querySelector("#kp-reload").classList.remove("d-none");
+      } catch (error) {
+        tell(error.message || "Could not request imports. Try again later.", true);
+      } finally {
+        button.disabled = false;
+      }
+      return;
+    }
     const row = button?.closest("tr[data-killmail]");
     if (!row) return;
     if (button.classList.contains("kp-copy")) {

@@ -23,7 +23,7 @@ from django.core.management import call_command  # noqa: E402
 from django.utils import timezone  # noqa: E402
 from eve_sde.models import ItemType, SolarSystem  # noqa: E402
 
-from killpusher import clients  # noqa: E402
+from killpusher import clients, views  # noqa: E402
 
 
 def main():
@@ -49,6 +49,7 @@ def main():
         "submitted", "Accepted by demo service."
     )
     clients.is_public = lambda mail_id: True
+    views.queue_import = lambda character_pk: True
     call_command("runserver", "127.0.0.1:8877", use_reloader=False)
 
 
