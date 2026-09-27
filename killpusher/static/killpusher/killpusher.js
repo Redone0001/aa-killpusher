@@ -35,7 +35,7 @@
   };
   root.addEventListener("click", async (event) => {
     const button = event.target.closest("button");
-    if (button?.id === "kp-refresh") {
+    if (button?.id === "kp-refresh" || button?.id === "kp-import") {
       button.disabled = true;
       try {
         const result = await send(button.dataset.url);

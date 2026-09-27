@@ -15,6 +15,7 @@
     </div>
     <div class="d-flex flex-wrap gap-2">
       <button type="button" id="kp-refresh" class="btn btn-outline-primary" data-url="{% url 'killpusher:refresh' %}">Refresh all characters</button>
+      <button type="button" id="kp-import" class="btn btn-outline-primary" data-url="{% url 'killpusher:import_characters' %}">Import characters from AA</button>
       <a class="btn btn-primary" href="{% url 'killpusher:connect' %}">Connect a character</a>
     </div>
   </div>
@@ -22,7 +23,7 @@
   <details class="card mb-4">
     <summary class="card-header">Connected characters and import status</summary>
     <div class="card-body">
-      <p class="small text-body-secondary">Refresh imports killmails for all characters connected here. Each character must first grant killmail access through Connect a character.</p>
+      <p class="small text-body-secondary">Refresh imports killmails for all characters connected here. Import characters from AA reuses existing killmail authorizations. Use Connect a character for missing access.</p>
       {% for character in characters %}
       <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between border-bottom py-2">
         <div>

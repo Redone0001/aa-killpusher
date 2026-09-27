@@ -10,6 +10,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 from esi.decorators import token_required
+from esi.models import Token
 from eve_sde.models import ItemType, SolarSystem
 
 from . import posting
@@ -152,6 +153,70 @@ def connect(request, token):
         request, "Character connected. Import requested; any existing CCP cooldown still applies."
     )
     return redirect("killpusher:index")
+
+
+@login_required
+@permission_required(PERMISSION, raise_exception=True)
+@require_POST
+@never_cache
+def import_characters(request):
+    if not cache.add(f"killpusher:discover:{request.user.pk}", True, timeout=60):
+        return JsonResponse({"message": "Please wait a minute before importing again."}, status=429)
+    connected = skipped = missing = 0
+    with transaction.atomic():
+        ownerships = CharacterOwnership.objects.select_for_update().filter(user=request.user)
+        for ownership in ownerships:
+            character = (
+                TrackedCharacter.objects.select_for_update().filter(ownership=ownership).first()
+            )
+            if character and valid_token(character):
+                skipped += 1
+                continue
+            token = (
+                Token.objects.filter(
+                    user=request.user,
+                    character_id=ownership.character.character_id,
+                    character_owner_hash=ownership.owner_hash,
+                    scopes__name=SCOPE,
+                )
+                .order_by("-pk")
+                .first()
+            )
+            if token is None:
+                missing += 1
+                continue
+            if character is None:
+                character = TrackedCharacter(ownership=ownership)
+            elif (
+                character.user_id != request.user.pk or character.owner_hash != ownership.owner_hash
+            ):
+                CharacterKillmail.objects.filter(character=character).delete()
+                character.last_sync = None
+                character.next_page = 1
+            character.user = request.user
+            character.owner_hash = ownership.owner_hash
+            character.token = token
+            character.error = ""
+            character.sync_lock = None
+            character.lock_until = None
+            character.save()
+            transaction.on_commit(lambda pk=character.pk: queue_import(pk))
+            connected += 1
+    return JsonResponse(
+        {
+            "connected": connected,
+            "skipped": skipped,
+            "missing": missing,
+            "message": (
+                f"Connected {connected} character(s); import requested. "
+                f"{skipped} already connected. {missing} need killmail access "
+                "through Connect a character. "
+                "The import worker checks existing tokens; revoked tokens require reconnection. "
+                "Reload to see updated characters and killmails."
+            ),
+        },
+        status=202,
+    )
 
 
 @login_required

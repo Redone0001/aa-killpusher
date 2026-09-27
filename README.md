@@ -44,7 +44,7 @@ environment/container as AA. Clone using a GitHub account with repository access
 gh auth login --hostname github.com
 gh repo clone Redone0001/aa-killpusher
 cd aa-killpusher
-git checkout v0.1.3
+git checkout v0.1.4
 python -m pip install .
 ```
 
@@ -53,13 +53,13 @@ tokens in install URLs, shell history, or settings files. If the repository is
 public, you can instead install the tagged version directly:
 
 ```sh
-python -m pip install 'git+https://github.com/Redone0001/aa-killpusher.git@v0.1.3'
+python -m pip install 'git+https://github.com/Redone0001/aa-killpusher.git@v0.1.4'
 ```
 
 Alternatively, install a built wheel:
 
 ```sh
-pip install /path/to/aa_killpusher-0.1.3-py3-none-any.whl
+pip install /path/to/aa_killpusher-0.1.4-py3-none-any.whl
 ```
 
 The package is not published on PyPI. The wheel is generated under `dist/` when
@@ -93,19 +93,27 @@ remain supported, but can be removed to use the shared AA configuration.
 To upgrade an existing installation:
 
 ```sh
-python -m pip install --upgrade 'git+https://github.com/Redone0001/aa-killpusher.git@v0.1.3'
+python -m pip install --upgrade 'git+https://github.com/Redone0001/aa-killpusher.git@v0.1.4'
 python manage.py migrate
 python manage.py check
 python manage.py collectstatic --noinput
 ```
 
-Restart AA's web process and Celery workers after upgrading. Version 0.1.3
+Restart AA's web process and Celery workers after upgrading. Upgrading from before 0.1.3
 requires migration `0002`, which adds cached victim names and background lookup
 timing fields. No additional Beat schedule or ESI scope is needed. Existing
 seven-day killmails are checked and enriched by the existing polling schedule.
 
 Add **`esi-killmails.read_killmails.v1`** to the allowed scopes of the EVE
 developer application already used by AA. Keep AA's existing SSO callback URL.
+Use **Import characters from AA** to reuse tokens already stored in AA for your
+linked characters. Tokens must belong to your account, match the current character
+ownership hash, and include the killmail scope. Newly connected characters get an
+import task after the database transaction commits. Existing connections and CCP
+cooldowns are preserved. This action is limited to once per minute. Missing scopes
+or revoked tokens require **Connect a character**. Disconnecting remains effective
+until you explicitly connect or import again. No new migration is needed for 0.1.4.
+
 There is no separate OAuth client or callback to configure. Each user consents
 to the scope through the module's **Connect a character** button; it is not
 necessary to add this scope to AA's default login scopes.
