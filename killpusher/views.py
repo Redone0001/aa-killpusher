@@ -77,7 +77,8 @@ def index(request):
                 "system": systems.get(mail.solar_system_id, f"System {mail.solar_system_id}"),
                 "victim": pilots.get(
                     mail.victim_character_id,
-                    (
+                    mail.victim_character_name
+                    or (
                         f"Character {mail.victim_character_id}"
                         if mail.victim_character_id
                         else "NPC / structure"
@@ -85,7 +86,8 @@ def index(request):
                 ),
                 "corporation": corps.get(
                     mail.victim_corporation_id,
-                    (f"Corp {mail.victim_corporation_id}" if mail.victim_corporation_id else ""),
+                    mail.victim_corporation_name
+                    or (f"Corp {mail.victim_corporation_id}" if mail.victim_corporation_id else ""),
                 ),
                 "friendly": bool(alliance_id and mail.victim_alliance_id == alliance_id),
                 "submission": submission,
@@ -235,11 +237,6 @@ def push(request, killmail_id):
             },
             status=409,
         )
-    # AA uses a shared Redis cache. Space outbound zKillboard requests across workers.
-    if not cache.add("killpusher:zkill:request", True, timeout=1):
-        return JsonResponse(
-            {"message": "Please wait a second before posting another killmail."}, status=429
-        )
     return submission_response(posting.submit(mail, request.user))
 
 
@@ -250,6 +247,4 @@ def push(request, killmail_id):
 def check_submission(request, killmail_id):
     visible_mail(request, killmail_id)
     submission = get_object_or_404(Submission, pk=killmail_id)
-    if not cache.add("killpusher:zkill:request", True, timeout=1):
-        return JsonResponse({"message": "Please wait a second before checking again."}, status=429)
     return submission_response(posting.reconcile(submission))

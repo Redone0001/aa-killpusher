@@ -196,9 +196,13 @@ def test_cleanup_keeps_durable_deduplication(pilot, make_mail):
 
 def test_scheduled_task_enqueues_authorized_characters(pilot):
     _, tracked = pilot
-    with patch("killpusher.tasks.fetch_character.apply_async") as enqueue:
+    with (
+        patch("killpusher.tasks.fetch_character.apply_async") as enqueue,
+        patch("killpusher.tasks.enrich_killmails.apply_async") as enrich,
+    ):
         poll_killmails()
         enqueue.assert_called_once_with(args=[tracked.pk], expires=300)
+        enrich.assert_called_once_with(expires=300)
 
 
 def test_reconnect_during_fetch_cannot_erase_new_token(client, pilot, payload):

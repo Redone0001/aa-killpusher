@@ -85,6 +85,7 @@ def test_rejected_request_can_be_retried(pilot, make_mail, requests_mock):
         ],
     )
     assert posting.submit(mail, user).state == "rejected"
+    cache.delete("killpusher:zkill:request")  # Simulate the shared request cooldown expiring.
     assert posting.submit(mail, user).state == "submitted"
     assert endpoint.call_count == 2
 
@@ -144,6 +145,7 @@ def test_reconciliation_positive_only_and_cached(pilot, make_mail, requests_mock
     assert posting.reconcile(submission).state == "unknown"
     assert lookup.call_count == 1
     cache.delete(f"killpusher:public:{mail.pk}")
+    cache.delete("killpusher:zkill:request")
     requests_mock.get(
         f"https://zkillboard.com/api/killID/{mail.pk}/", json=[{"killmail_id": mail.pk}]
     )

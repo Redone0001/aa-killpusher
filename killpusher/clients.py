@@ -37,10 +37,13 @@ def headers():
 
 
 class EsiClient:
-    def __init__(self, token):
+    def __init__(self, token=None):
         self.token = token
 
     def get(self, path, *, authenticated=False, params=None):
+        return self.request("GET", path, authenticated=authenticated, params=params)
+
+    def request(self, method, path, *, authenticated=False, params=None, json=None):
         delay_until = cache.get("killpusher:esi:backoff")
         if delay_until and delay_until > timezone.now():
             raise RemoteError(
@@ -52,9 +55,11 @@ class EsiClient:
         if authenticated:
             request_headers["Authorization"] = f"Bearer {self.token.valid_access_token()}"
         try:
-            response = requests.get(
+            response = requests.request(
+                method,
                 f"{ESI}{path}",
                 params=params,
+                json=json,
                 headers=request_headers,
                 timeout=TIMEOUT,
                 allow_redirects=False,
@@ -94,6 +99,12 @@ class EsiClient:
     def detail(self, killmail_id, killmail_hash):
         return self.get(f"/killmails/{killmail_id}/{killmail_hash}")[0]
 
+    def names(self, ids):
+        data, _ = self.request("POST", "/universe/names", json=sorted(set(ids)))
+        if not isinstance(data, list):
+            raise RemoteError("CCP returned an unexpected name list.")
+        return data
+
 
 @dataclass(frozen=True)
 class PostResult:
@@ -102,6 +113,8 @@ class PostResult:
 
 
 def post_killmail(killmail):
+    if not reserve_zkill_request():
+        return PostResult("rejected", "zKillboard requests are paused briefly. Please retry later.")
     # No automatic HTTP retries: a timeout can happen after zKillboard accepts the POST.
     try:
         response = requests.post(
@@ -111,7 +124,12 @@ def post_killmail(killmail):
             allow_redirects=False,
         )
     except requests.RequestException:
+        pause_zkill(60)
         return PostResult("unknown", "No reliable response. Push locked to prevent a duplicate.")
+    if response.status_code in (420, 429):
+        pause_zkill(retry_seconds(response.headers.get("Retry-After")))
+    elif response.status_code >= 500:
+        pause_zkill(60)
     try:
         data = response.json()
     except ValueError:
@@ -127,11 +145,13 @@ def post_killmail(killmail):
 
 
 def is_public(killmail_id):
-    """Positive-only reconciliation. Absence is never evidence that a POST failed."""
+    """True = found, False = absent from a valid response, None = not established."""
     key = f"killpusher:public:{killmail_id}"
     cached = cache.get(key)
     if cached is not None:
         return cached
+    if not reserve_zkill_request():
+        return None
     try:
         response = requests.get(
             f"{ZKILL}/api/killID/{killmail_id}/",
@@ -139,14 +159,38 @@ def is_public(killmail_id):
             timeout=TIMEOUT,
             allow_redirects=False,
         )
+    except requests.RequestException:
+        pause_zkill(60)
+        return None
+    if response.status_code != 200:
+        pause_zkill(retry_seconds(response.headers.get("Retry-After"), default=300))
+        return None
+    try:
         data = response.json()
-    except (requests.RequestException, ValueError):
-        return False
-    found = (
-        response.status_code == 200
-        and isinstance(data, list)
-        and any(isinstance(row, dict) and row.get("killmail_id") == killmail_id for row in data)
-    )
+    except ValueError:
+        pause_zkill(60)
+        return None
+    if not isinstance(data, list) or any(
+        not isinstance(row, dict) or not isinstance(row.get("killmail_id"), int) for row in data
+    ):
+        pause_zkill(60)
+        return None
+    found = any(row["killmail_id"] == killmail_id for row in data)
     # zKillboard requests a one-hour client cache for killmail queries.
     cache.set(key, found, timeout=3600)
     return found
+
+
+def reserve_zkill_request():
+    """Shared across background reads, manual checks, and posting workers."""
+    if cache.get("killpusher:zkill:backoff"):
+        return False
+    return cache.add("killpusher:zkill:request", True, timeout=2)
+
+
+def pause_zkill(seconds):
+    until = timezone.now() + timedelta(seconds=max(1, seconds))
+    existing = cache.get("killpusher:zkill:backoff")
+    if existing and existing >= until:
+        return
+    cache.set("killpusher:zkill:backoff", until, timeout=max(1, seconds))

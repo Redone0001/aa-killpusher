@@ -35,6 +35,10 @@ class Killmail(models.Model):
     victim_corporation_id = models.PositiveBigIntegerField(null=True)
     victim_alliance_id = models.PositiveBigIntegerField(null=True)
     victim_ship_type_id = models.PositiveBigIntegerField()
+    victim_character_name = models.CharField(max_length=255, blank=True)
+    victim_corporation_name = models.CharField(max_length=255, blank=True)
+    next_public_check = models.DateTimeField(null=True, blank=True, db_index=True)
+    next_name_check = models.DateTimeField(null=True, blank=True, db_index=True)
 
     class Meta:
         default_permissions = ()

@@ -36,6 +36,13 @@ def main():
     tracked.save()
     create_mail = make_mail.__wrapped__(None)
     create_mail(tracked)
+    from killpusher.models import Killmail
+    from killpusher.posting import mark_public
+
+    Killmail.objects.update(
+        victim_character_name="Example Pilot", victim_corporation_name="Example Corporation"
+    )
+    mark_public(123456789)
     create_mail(
         tracked,
         mail_id=123456788,

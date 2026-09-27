@@ -20,6 +20,10 @@ with modern AA/Django hooks and templates.
   used at click time; its freshness follows AA's character updates.
 - See a persistent **Pushed** state and no repeat push after success, shared
   across every user who has access to that killmail.
+- Killmails already public on zKillboard are automatically marked **Pushed**,
+  even when someone else posted them. Checks run in the background.
+- Victim pilot and corporation names are resolved through AA and CCP, with IDs
+  used temporarily while a lookup is pending or unavailable.
 - Copy its ESI URL for [manual zKillboard posting](https://zkillboard.com/post/).
 - Check ambiguous submissions against the public zKillboard API.
 - Disconnect this module's character tracking without deleting tokens used by
@@ -40,7 +44,7 @@ environment/container as AA. Clone using a GitHub account with repository access
 gh auth login --hostname github.com
 gh repo clone Redone0001/aa-killpusher
 cd aa-killpusher
-git checkout v0.1.2
+git checkout v0.1.3
 python -m pip install .
 ```
 
@@ -49,13 +53,13 @@ tokens in install URLs, shell history, or settings files. If the repository is
 public, you can instead install the tagged version directly:
 
 ```sh
-python -m pip install 'git+https://github.com/Redone0001/aa-killpusher.git@v0.1.2'
+python -m pip install 'git+https://github.com/Redone0001/aa-killpusher.git@v0.1.3'
 ```
 
 Alternatively, install a built wheel:
 
 ```sh
-pip install /path/to/aa_killpusher-0.1.2-py3-none-any.whl
+pip install /path/to/aa_killpusher-0.1.3-py3-none-any.whl
 ```
 
 The package is not published on PyPI. The wheel is generated under `dist/` when
@@ -89,13 +93,16 @@ remain supported, but can be removed to use the shared AA configuration.
 To upgrade an existing installation:
 
 ```sh
-python -m pip install --upgrade 'git+https://github.com/Redone0001/aa-killpusher.git@v0.1.2'
+python -m pip install --upgrade 'git+https://github.com/Redone0001/aa-killpusher.git@v0.1.3'
+python manage.py migrate
 python manage.py check
 python manage.py collectstatic --noinput
 ```
 
-Restart AA's web process and Celery workers after upgrading. Version 0.1.2
-does not require new database migrations.
+Restart AA's web process and Celery workers after upgrading. Version 0.1.3
+requires migration `0002`, which adds cached victim names and background lookup
+timing fields. No additional Beat schedule or ESI scope is needed. Existing
+seven-day killmails are checked and enriched by the existing polling schedule.
 
 Add **`esi-killmails.read_killmails.v1`** to the allowed scopes of the EVE
 developer application already used by AA. Keep AA's existing SSO callback URL.
@@ -150,14 +157,19 @@ The selected minimal profile stores:
 | --- | --- |
 | Killmail ID/hash, time, system ID | 7 days from kill time |
 | Victim character/corporation/alliance/ship IDs | 7 days from kill time |
+| Resolved victim character/corporation names and lookup timing | With the killmail |
 | Character association and kill/loss role | With the killmail, or until disconnect |
 | Tracking, authorization reference, poll progress and safe error message | While connected |
 | Submission ID, state, user reference, timestamps and brief result | Successful/uncertain records permanently; rejected records 7 days from attempt |
 
 Full attacker lists, damage, fitting, cargo, coordinates, and raw killmail JSON
 are **not stored**. Ship and system names are looked up in your existing SDE.
-Victim pilot/corporation names use existing AA records, with an ID fallback for
-unknown entities. This avoids another entity/name cache in the module.
+Victim pilot/corporation names first use existing AA records. A background job
+resolves missing names with CCP's public bulk `/universe/names` endpoint, at
+most 200 unique IDs (100 killmails) per batch and one batch per minute across
+the installation. Shared name-cache entries expire after seven days; names on
+killmail rows are deleted with those rows. Failed/missing name results are
+retried after five minutes. Page rendering makes no external lookup requests.
 
 Cleanup runs with every five-minute import task. Old details are also excluded
 from the page and push endpoint immediately, even if a cleanup run is delayed.
@@ -167,6 +179,27 @@ it preserves duplicate prevention after cleanup. Database size therefore has a
 small, ongoing component proportional to the number of submissions.
 
 ## API behavior and limits
+
+Automatic zKillboard presence checks are limited to **20 killmails per five
+minutes across the installation**, staggered ten seconds apart. All outbound
+zKillboard requests (automatic checks, manual checks, and posts) share a
+two-second request gap and an outage/rate-limit backoff. HTTP rate-limit
+responses honor `Retry-After`; failures pause new requests rather than triggering
+an immediate retry loop. AA's shared Redis cache is required for coordination.
+
+Valid zKillboard lookup results are cached for **one hour** across users. Mails
+younger than five minutes are skipped because zKillboard withholds them from its
+query API. A positive match writes the permanent submission ledger, displays
+**Pushed**, and disables posting. The ledger explains that it was already on
+zKillboard and does not attribute an external submission to a local user.
+Already confirmed mails are not checked again. Empty responses and outages
+never mark a mail pushed. Large backlogs are processed over multiple cycles;
+these checks are eventually consistent, not an immediate preflight before every
+push. Names and statuses become visible when the list is reloaded.
+
+Both enrichment jobs run after character imports and through the existing
+five-minute periodic task, so older rows from previous module versions are
+covered too.
 
 CCP's character endpoint returns ID/hash pairs for up to 90 days. The module
 keeps only seven days **from the kill time**, not seven days from import. This

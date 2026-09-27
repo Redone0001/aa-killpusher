@@ -49,11 +49,38 @@ def submit(killmail, user):
     if not claimed:
         return submission
     result = clients.post_killmail(killmail)
-    submission.state = result.state
-    submission.message = result.message
+    changes = {"state": result.state, "message": result.message}
     if result.state == Submission.State.SUBMITTED:
-        submission.submitted_at = timezone.now()
-    submission.save(update_fields=["state", "message", "submitted_at"])
+        changes["submitted_at"] = timezone.now()
+    # A concurrent public lookup may already have confirmed this mail. Never
+    # replace that positive proof with a timeout or rejection from the POST.
+    Submission.objects.filter(pk=submission.pk).exclude(state=Submission.State.SUBMITTED).update(
+        **changes
+    )
+    submission.refresh_from_db()
+    return submission
+
+
+def mark_public(killmail_id):
+    """Persist positive proof without claiming that a user posted this killmail."""
+    now = timezone.now()
+    with transaction.atomic():
+        submission, _ = Submission.objects.get_or_create(
+            pk=killmail_id,
+            defaults={
+                "state": Submission.State.SUBMITTED,
+                "attempted_at": now,
+                "submitted_at": now,
+                "message": "Already present on zKillboard.",
+            },
+        )
+        Submission.objects.filter(pk=submission.pk).exclude(
+            state=Submission.State.SUBMITTED
+        ).update(
+            state=Submission.State.SUBMITTED,
+            submitted_at=now,
+            message="Confirmed present on zKillboard.",
+        )
     return submission
 
 
