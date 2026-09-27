@@ -37,7 +37,7 @@ environment/container as AA. Clone using a GitHub account with repository access
 gh auth login --hostname github.com
 gh repo clone Redone0001/aa-killpusher
 cd aa-killpusher
-git checkout v0.1.0
+git checkout v0.1.1
 python -m pip install .
 ```
 
@@ -46,13 +46,13 @@ tokens in install URLs, shell history, or settings files. If the repository is
 public, you can instead install the tagged version directly:
 
 ```sh
-python -m pip install 'git+https://github.com/Redone0001/aa-killpusher.git@v0.1.0'
+python -m pip install 'git+https://github.com/Redone0001/aa-killpusher.git@v0.1.1'
 ```
 
 Alternatively, install a built wheel:
 
 ```sh
-pip install /path/to/aa_killpusher-0.1.0-py3-none-any.whl
+pip install /path/to/aa_killpusher-0.1.1-py3-none-any.whl
 ```
 
 The package is not published on PyPI. The wheel is generated under `dist/` when
@@ -71,14 +71,27 @@ from celery.schedules import crontab
 
 INSTALLED_APPS += ["killpusher.apps.KillpusherConfig"]
 
-# Replace this with your actual Auth URL and maintainer contact.
-KILLPUSHER_USER_AGENT = "My Alliance Auth / https://auth.example.org / admin@example.org"
-
 CELERYBEAT_SCHEDULE["Killmail Pusher :: Import and cleanup"] = {
     "task": "killpusher.tasks.poll_killmails",
     "schedule": crontab(minute="*/5"),
 }
 ```
+
+The HTTP User-Agent is populated automatically from AA's existing `SITE_URL`
+and `ESI_USER_CONTACT_EMAIL` settings, together with the module version. No
+module-specific contact setting is required. AA retains responsibility for
+validating its central settings. Existing `KILLPUSHER_USER_AGENT` overrides
+remain supported, but can be removed to use the shared AA configuration.
+
+To upgrade an existing installation to this behavior:
+
+```sh
+python -m pip install --upgrade 'git+https://github.com/Redone0001/aa-killpusher.git@v0.1.1'
+python manage.py check
+```
+
+Restart AA's web process and Celery workers after upgrading. Version 0.1.1
+does not require new database migrations.
 
 Add **`esi-killmails.read_killmails.v1`** to the allowed scopes of the EVE
 developer application already used by AA. Keep AA's existing SSO callback URL.

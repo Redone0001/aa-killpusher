@@ -27,5 +27,4 @@ ESI_SSO_CLIENT_ID = "test"
 ESI_SSO_CLIENT_SECRET = "test"
 ESI_SSO_CALLBACK_URL = "http://testserver/sso/callback"
 ESI_USER_CONTACT_EMAIL = "tests@example.invalid"
-KILLPUSHER_USER_AGENT = "aa-killpusher tests (tests@example.invalid)"
 USE_TZ = True
