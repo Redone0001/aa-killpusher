@@ -4,12 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aa-killpusher"
-version = "0.1.6"
+version = "0.1.7"
 description = "Manually publish character killmails to zKillboard from Alliance Auth"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-  "allianceauth>=5.4,<5.6",
+  "allianceauth>=5.4,<6",
   "django-esi>=9.10,<11",
   "django-eveonline-sde>=0.2,<1",
   "requests>=2.32,<3",

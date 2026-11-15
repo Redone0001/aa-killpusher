@@ -117,7 +117,7 @@ from posting the copied URL elsewhere.
 
 1. Minimal fields only.
 2. Detail retention: seven days.
-3. Alliance Auth 5.4–5.5. Verified with django-esi 9.10.0 and 10.0.0;
+3. Alliance Auth >=5.4,<6 (since version 0.1.7). Verified on AA 5.4–5.5 with django-esi 9.10.0 and 10.0.0;
    AA 5.5 requires django-esi 10. Version 0.1.6 widens dependency bounds.
 4. Friendly comparison: the user's AA main character's current alliance versus
    the victim's recorded alliance in the killmail.

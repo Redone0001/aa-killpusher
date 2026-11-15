@@ -1,6 +1,6 @@
 # AA Killmail Pusher
 
-An Alliance Auth **5.4–5.5** module for deliberately publishing character killmails
+An Alliance Auth **5.x (5.4 or newer)** module for deliberately publishing character killmails
 to zKillboard. Based on the integration pattern in
 [allianceauth_example](https://github.com/ErikKalkoken/allianceauth_example),
 with modern AA/Django hooks and templates.
@@ -37,7 +37,8 @@ imported mails are visible to the user.
 
 ## AA 5.5 compatibility
 
-Version 0.1.6 allows AA `>=5.4,<5.6` and Django-ESI `>=9.10,<11`.
+Version 0.1.7 allows AA `>=5.4,<6` and Django-ESI `>=9.10,<11`.
+The AA version range permits releases below 6; verification so far covers AA 5.4 and 5.5.
 AA 5.5 requires Django-ESI 10; older Killmail Pusher versions capped it below 10
 and capped AA below 5.5. No module logic or database migration changes are needed.
 See the [AA 5.5 release notes](https://gitlab.com/allianceauth/allianceauth/-/releases/v5.5.0).
@@ -50,7 +51,7 @@ HTTP; live SSO and MariaDB were not tested.
 When upgrading AA and this module together, resolve both in the same pip command:
 
 ```sh
-python -m pip install --upgrade 'allianceauth>=5.5,<5.6' 'git+https://github.com/Redone0001/aa-killpusher.git@v0.1.6'
+python -m pip install --upgrade 'allianceauth>=5.5,<6' 'git+https://github.com/Redone0001/aa-killpusher.git@v0.1.7'
 python -m pip check
 python manage.py migrate
 python manage.py collectstatic --noinput
@@ -60,7 +61,7 @@ python manage.py check
 Follow AA's upgrade procedure for your deployment and restart its web process,
 Celery workers, and Beat. Other installed apps must also support AA 5.5.
 
-## Installation on AA 5.4 or 5.5
+## Installation on AA 5.x (5.4 or newer)
 
 Repository: [Redone0001/aa-killpusher](https://github.com/Redone0001/aa-killpusher).
 
@@ -71,7 +72,7 @@ environment/container as AA. Clone using a GitHub account with repository access
 gh auth login --hostname github.com
 gh repo clone Redone0001/aa-killpusher
 cd aa-killpusher
-git checkout v0.1.6
+git checkout v0.1.7
 python -m pip install .
 ```
 
@@ -80,13 +81,13 @@ tokens in install URLs, shell history, or settings files. If the repository is
 public, you can instead install the tagged version directly:
 
 ```sh
-python -m pip install 'git+https://github.com/Redone0001/aa-killpusher.git@v0.1.6'
+python -m pip install 'git+https://github.com/Redone0001/aa-killpusher.git@v0.1.7'
 ```
 
 Alternatively, install a built wheel:
 
 ```sh
-pip install /path/to/aa_killpusher-0.1.6-py3-none-any.whl
+pip install /path/to/aa_killpusher-0.1.7-py3-none-any.whl
 ```
 
 The package is not published on PyPI. The wheel is generated under `dist/` when
@@ -120,7 +121,7 @@ remain supported, but can be removed to use the shared AA configuration.
 To upgrade an existing installation:
 
 ```sh
-python -m pip install --upgrade 'git+https://github.com/Redone0001/aa-killpusher.git@v0.1.6'
+python -m pip install --upgrade 'git+https://github.com/Redone0001/aa-killpusher.git@v0.1.7'
 python manage.py migrate
 python manage.py check
 python manage.py collectstatic --noinput
@@ -139,7 +140,7 @@ ownership hash, and include the killmail scope. Newly connected characters get a
 import task after the database transaction commits. Existing connections and CCP
 cooldowns are preserved. This action is limited to once per minute. Missing scopes
 or revoked tokens require **Connect a character**. Disconnecting remains effective
-until you explicitly connect or import again. No new migration is needed for 0.1.6.
+until you explicitly connect or import again. No new migration is needed for 0.1.7.
 
 There is no separate OAuth client or callback to configure. Each user consents
 to the scope through the module's **Connect a character** button; it is not
