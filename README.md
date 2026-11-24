@@ -35,23 +35,84 @@ An import never automatically publishes killmails. Only the user's push action
 sends them to zKillboard. Only currently owned, explicitly connected characters'
 imported mails are visible to the user.
 
+## SDE compatibility
+
+Version 0.1.8 allows `django-eveonline-sde>=0.2,<3`, including both **0.2.0**
+and **2.0.0**. No Killpusher logic or database migration changes are needed:
+the module still uses `ItemType` and `SolarSystem` IDs and translated names.
+
+The test suite passes with SDE 0.2.0 and 2.0.0 on Python 3.11, using both
+AA 5.4 / Django-ESI 9.10 and AA 5.5 / Django-ESI 10. Tests cover names imported
+from SDE files, English/German rendering, and numeric fallbacks for missing
+entries. REST-format tests run only on SDE versions that support REST imports.
+Tests use SQLite and mocked HTTP; live SSO, MariaDB, and a full live SDE reload
+still need staging validation.
+
+Pin the SDE version explicitly when installing or upgrading. To retain 0.2.0:
+
+```sh
+python -m pip install --upgrade 'git+https://github.com/Redone0001/aa-killpusher.git@v0.1.8' 'django-eveonline-sde==0.2.0'
+```
+
+To use exactly 2.0.0:
+
+```sh
+python -m pip install --upgrade 'git+https://github.com/Redone0001/aa-killpusher.git@v0.1.8' 'django-eveonline-sde==2.0.0'
+```
+
+Other installed apps must also accept the chosen SDE version. Updating Killpusher
+does not remove their dependency conflicts; require a clean `python -m pip check`
+before continuing the deployment.
+
+SDE 2.0.0 requires Python 3.10–3.14, Django 5.2+, and newer provider dependencies,
+including `django-modeltranslation>=0.20.6,<0.21`. Follow its
+[upstream setup instructions](https://github.com/Solar-Helix-Independent-Transport/django-eveonline-sde/blob/2.0.0/README.md).
+Keep `modeltranslation` first in `INSTALLED_APPS`.
+
+Before upgrading the shared SDE, stop application activity using your normal
+maintenance procedure, save the installed package versions, and take a consistent
+database backup. Rehearse the upgrade against a staging copy first. From SDE
+0.2.0, the provider adds migrations `0037` through `0040`; migration `0038`
+deduplicates relation rows and its reverse operation does not restore them.
+If 2.0.0 is already installed, check which migrations and imports have completed.
+
+After installing the coordinated compatible packages, run from your AA project:
+
+```sh
+python -m pip check
+python manage.py migrate --plan
+python manage.py migrate
+python manage.py esde_load_sde --plan
+python manage.py esde_load_sde
+python manage.py check
+python manage.py collectstatic --noinput
+```
+
+The first SDE 2.0.0 REST import reloads all provider models once; subsequent
+imports are selective. Verify the SDE import status and displayed ship/system
+names before resuming service. Upstream recommends checking for SDE updates
+hourly with `eve_sde.tasks.check_for_sde_updates`, using `crontab(minute="30")`.
+Restart the web process, Celery workers, and Beat after deployment. To roll back
+an SDE migration or reload, restore both the saved package set and its matching
+database backup; reinstalling an older package alone does not restore the data.
+
 ## AA 5.5 compatibility
 
-Version 0.1.7 allows AA `>=5.4,<6` and Django-ESI `>=9.10,<11`.
+Since version 0.1.7, the module allows AA `>=5.4,<6` and Django-ESI `>=9.10,<11`.
 The AA version range permits releases below 6; verification so far covers AA 5.4 and 5.5.
 AA 5.5 requires Django-ESI 10; older Killmail Pusher versions capped it below 10
 and capped AA below 5.5. No module logic or database migration changes are needed.
 See the [AA 5.5 release notes](https://gitlab.com/allianceauth/allianceauth/-/releases/v5.5.0).
 
-Verified all 90 tests against AA 5.5.0, Django-ESI 10.0.0, Django 5.2.18,
-and Celery 5.6.3 on Python 3.11, plus the existing AA 5.4 environment.
+Verified against AA 5.5.0, Django-ESI 10.0.0, Django 5.2.18,
+and Celery 5.6.3 on Python 3.11, plus the AA 5.4 environment.
 Django system checks and migration checks passed. Tests use SQLite and mocked
 HTTP; live SSO and MariaDB were not tested.
 
 When upgrading AA and this module together, resolve both in the same pip command:
 
 ```sh
-python -m pip install --upgrade 'allianceauth>=5.5,<6' 'git+https://github.com/Redone0001/aa-killpusher.git@v0.1.7'
+python -m pip install --upgrade 'allianceauth>=5.5,<6' 'git+https://github.com/Redone0001/aa-killpusher.git@v0.1.8'
 python -m pip check
 python manage.py migrate
 python manage.py collectstatic --noinput
@@ -72,7 +133,7 @@ environment/container as AA. Clone using a GitHub account with repository access
 gh auth login --hostname github.com
 gh repo clone Redone0001/aa-killpusher
 cd aa-killpusher
-git checkout v0.1.7
+git checkout v0.1.8
 python -m pip install .
 ```
 
@@ -81,13 +142,13 @@ tokens in install URLs, shell history, or settings files. If the repository is
 public, you can instead install the tagged version directly:
 
 ```sh
-python -m pip install 'git+https://github.com/Redone0001/aa-killpusher.git@v0.1.7'
+python -m pip install 'git+https://github.com/Redone0001/aa-killpusher.git@v0.1.8'
 ```
 
 Alternatively, install a built wheel:
 
 ```sh
-pip install /path/to/aa_killpusher-0.1.7-py3-none-any.whl
+pip install /path/to/aa_killpusher-0.1.8-py3-none-any.whl
 ```
 
 The package is not published on PyPI. The wheel is generated under `dist/` when
@@ -121,7 +182,7 @@ remain supported, but can be removed to use the shared AA configuration.
 To upgrade an existing installation:
 
 ```sh
-python -m pip install --upgrade 'git+https://github.com/Redone0001/aa-killpusher.git@v0.1.7'
+python -m pip install --upgrade 'git+https://github.com/Redone0001/aa-killpusher.git@v0.1.8'
 python manage.py migrate
 python manage.py check
 python manage.py collectstatic --noinput
@@ -129,7 +190,7 @@ python manage.py collectstatic --noinput
 
 Restart AA's web process and Celery workers after upgrading. Upgrading from before 0.1.3
 requires migration `0002`, which adds cached victim names and background lookup
-timing fields. No additional Beat schedule or ESI scope is needed. Existing
+timing fields. No additional Killpusher Beat schedule or ESI scope is needed. Existing
 seven-day killmails are checked and enriched by the existing polling schedule.
 
 Add **`esi-killmails.read_killmails.v1`** to the allowed scopes of the EVE
@@ -140,7 +201,7 @@ ownership hash, and include the killmail scope. Newly connected characters get a
 import task after the database transaction commits. Existing connections and CCP
 cooldowns are preserved. This action is limited to once per minute. Missing scopes
 or revoked tokens require **Connect a character**. Disconnecting remains effective
-until you explicitly connect or import again. No new migration is needed for 0.1.7.
+until you explicitly connect or import again. No new Killpusher migration is needed for 0.1.8.
 
 There is no separate OAuth client or callback to configure. Each user consents
 to the scope through the module's **Connect a character** button; it is not

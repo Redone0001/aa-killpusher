@@ -121,6 +121,10 @@ from posting the copied URL elsewhere.
    AA 5.5 requires django-esi 10. Version 0.1.6 widens dependency bounds.
 4. Friendly comparison: the user's AA main character's current alliance versus
    the victim's recorded alliance in the killmail.
+5. Django EVE SDE >=0.2,<3 (since version 0.1.8). SDE 0.2.0 and 2.0.0 are
+   verified with AA 5.4–5.5. Killpusher stores numeric SDE IDs without foreign
+   keys; upgrading SDE does not require a Killpusher migration. The shared SDE
+   provider's own migrations and reload procedure still apply.
 
 The proposed warning applies to losses as well when they match the selected
 alliance rule, since posting either type exposes a friendly loss publicly.
